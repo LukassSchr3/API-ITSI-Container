@@ -36,8 +36,24 @@ public class NoVncWebSocketHandler extends BinaryWebSocketHandler {
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
         log.info("noVNC WebSocket connection established: {}", session.getId());
 
+        // VNC-Port dynamisch aus Query-Param oder Session-Attribut bestimmen
+        int dynamicVncPort = vncPort;
+        String query = session.getUri().getQuery();
+        if (query != null && query.contains("vncPort=")) {
+            try {
+                for (String param : query.split("&")) {
+                    if (param.startsWith("vncPort=")) {
+                        dynamicVncPort = Integer.parseInt(param.split("=")[1]);
+                        break;
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("Invalid vncPort query param, fallback to default: {}", vncPort);
+            }
+        }
+
         try {
-            Socket socket = new Socket(vncHost, vncPort);
+            Socket socket = new Socket(vncHost, dynamicVncPort);
             session.getAttributes().put(VNC_SOCKET_ATTR, socket);
 
             // Start background task to read from VNC TCP socket and forward to WebSocket client
@@ -63,7 +79,7 @@ public class NoVncWebSocketHandler extends BinaryWebSocketHandler {
                 }
             });
         } catch (IOException e) {
-            log.error("Failed to connect to VNC server {}:{}", vncHost, vncPort, e);
+            log.error("Failed to connect to VNC server {}:{}", vncHost, dynamicVncPort, e);
             session.close(CloseStatus.SERVER_ERROR);
         }
     }

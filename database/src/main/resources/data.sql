@@ -40,3 +40,7 @@ VALUES ('cont_7', 'nginx-proxy', 2, 1, 'running');
 INSERT INTO instances (container_id, name, image_id, user_id, status)
 VALUES ('cont_8', 'dev-database', 3, 4, 'stopped');
 
+
+
+INSERT INTO live_environments (user_id, vnc_port, vnc_password, status)
+VALUES (1, 5901, 'password123',  'stopped');

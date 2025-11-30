@@ -23,3 +23,20 @@ CREATE TABLE IF NOT EXISTS instances ( -- Finish Container Instances Table which
     FOREIGN KEY(user_id) REFERENCES users(id)
 );
 
+
+
+CREATE TABLE IF NOT EXISTS live_environments (
+     id INTEGER AUTO_INCREMENT PRIMARY KEY,
+     user_id INTEGER UNIQUE NOT NULL,
+
+    -- VNC Verbindungsdaten
+    vnc_port INTEGER NOT NULL,
+    vnc_host VARCHAR(255) DEFAULT 'localhost',
+    vnc_password VARCHAR(255),
+
+    -- Status
+    status VARCHAR(50) DEFAULT 'stopped',
+
+
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    );

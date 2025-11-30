@@ -35,4 +35,9 @@ public class WebClientConfig {
                 .baseUrl(backendApiUrl)
                 .build();
     }
+
+    @Bean
+    public WebClient.Builder webClientBuilder() {
+        return WebClient.builder();
+    }
 }

@@ -1,6 +1,7 @@
 package itsi.api.steuerung.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -115,5 +116,24 @@ public class LiveEnvironmentController {
                 .bodyToMono(Map.class)
                 .block();
         return ResponseEntity.ok(createdEnv);
+    }
+
+    @GetMapping("/vnc-port/{userId}")
+    public ResponseEntity<?> getVncPortByUserId(@PathVariable Long userId) {
+        // Hole das Live-Environment für den User
+        Map<String, Object> liveEnv = databaseWebClient.get()
+                .uri("/api/live-environments/" + userId)
+                .retrieve()
+                .bodyToMono(Map.class)
+                .block();
+        if (liveEnv == null || liveEnv.get("vncPort") == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Kein VNC-Port für diesen User gefunden!");
+        }
+        Map<String, Object> result = new HashMap<>();
+        result.put("vncPort", liveEnv.get("vncPort"));
+        if (liveEnv.get("vncPassword") != null) {
+            result.put("vncPassword", liveEnv.get("vncPassword"));
+        }
+        return ResponseEntity.ok(result);
     }
 }

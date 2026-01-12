@@ -2,8 +2,13 @@
 
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER AUTO_INCREMENT PRIMARY KEY,
+    email VARCHAR(255) UNIQUE NOT NULL,
     name VARCHAR(255) UNIQUE NOT NULL,
-    role VARCHAR(255) NOT NULL
+    password_hash VARCHAR(255) NOT NULL,
+    class VARCHAR(10),
+    role VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    expired_at TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS images ( -- Represents the Exercise and will sended by the frontend.

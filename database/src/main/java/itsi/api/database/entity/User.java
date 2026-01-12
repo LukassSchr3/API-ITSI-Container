@@ -5,6 +5,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.sql.Timestamp;
+
 @Entity
 @Table(name = "users")
 @Data
@@ -18,6 +20,21 @@ public class User {
 
     @Column(unique = true, nullable = false)
     private String name;
+
+    @Column(name = "email", unique = true, nullable = false)
+    private String email;
+
+    @Column(name = "password", nullable = false)
+    private String password;
+
+    @Column(name="class")
+    private String className;
+
+    @Column(name = "expired_at")
+    private Timestamp expiredAt;
+
+    @Column(name = "created_at", nullable = false)
+    private Timestamp createdAt;
 
     @Column(nullable = false)
     private String role;

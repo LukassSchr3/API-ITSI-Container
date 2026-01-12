@@ -1,11 +1,20 @@
 -- Beispieldaten für die Datenbank
 
 -- Users einfügen
-INSERT INTO users (name, role) VALUES ('admin', 'ADMIN');
-INSERT INTO users (name, role) VALUES ('john_doe', 'USER');
-INSERT INTO users (name, role) VALUES ('jane_smith', 'USER');
-INSERT INTO users (name, role) VALUES ('dev_user', 'DEVELOPER');
-INSERT INTO users (name, role) VALUES ('test_user', 'TESTER');
+INSERT INTO users (email, name, password, class, role, created_at, expired_at)
+VALUES ('admin@example.com', 'admin', '$2a$10$abcdefghijklmnopqrstuv', NULL, 'ADMIN', CURRENT_TIMESTAMP, NULL);
+
+INSERT INTO users (email, name, password, class, role, created_at, expired_at)
+VALUES ('john.doe@example.com', 'john_doe', '$2a$10$abcdefghijklmnopqrstuv', '5AHIT', 'USER', CURRENT_TIMESTAMP, NULL);
+
+INSERT INTO users (email, name, password, class, role, created_at, expired_at)
+VALUES ('jane.smith@example.com', 'jane_smith', '$2a$10$abcdefghijklmnopqrstuv', '5BHIT', 'USER', CURRENT_TIMESTAMP, NULL);
+
+INSERT INTO users (email, name, password, class, role, created_at, expired_at)
+VALUES ('dev.user@example.com', 'dev_user', '$2a$10$abcdefghijklmnopqrstuv', '4AHIT', 'DEVELOPER', CURRENT_TIMESTAMP, NULL);
+
+INSERT INTO users (email, name, password, class, role, created_at, expired_at)
+VALUES ('test.user@example.com', 'test_user', '$2a$10$abcdefghijklmnopqrstuv', '3AHIT', 'TESTER', CURRENT_TIMESTAMP, NULL);
 
 -- Images einfügen
 INSERT INTO images (name, image_ref) VALUES ('ubuntu-latest', 'docker.io/library/ubuntu:latest');

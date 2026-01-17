@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.Mono;
 
 import java.time.Duration;
 
@@ -83,6 +84,26 @@ public class DatabaseService {
                 .block();
     }
 
+    public ImageDTO[] getAllImages() {
+        log.debug("Fetching all images from database");
+        return databaseWebClient.get()
+                .uri("/api/images")
+                .retrieve()
+                .bodyToMono(ImageDTO[].class)
+                .timeout(Duration.ofSeconds(30))
+                .block();
+    }
+
+    public InstanceDTO[] getAllInstances() {
+        log.debug("Fetching all instances from database");
+        return databaseWebClient.get()
+                .uri("/api/instances")
+                .retrieve()
+                .bodyToMono(InstanceDTO[].class)
+                .timeout(Duration.ofSeconds(30))
+                .block();
+    }
+
     public void deleteInstance(Integer id) {
         log.debug("Deleting instance with id: {}", id);
         databaseWebClient.delete()
@@ -151,5 +172,80 @@ public class DatabaseService {
         newInstance.setStatus("created");
         
         return createInstance(newInstance);
+    }
+
+    public java.util.Map<String, Object> getLiveEnvironmentByUserId(Integer userId) {
+        log.debug("Fetching live-environment for userId: {}", userId);
+        try {
+            return databaseWebClient.get()
+                    .uri("/api/live-environments/{userId}", userId)
+                    .retrieve()
+                    .bodyToMono(java.util.Map.class)
+                    .timeout(Duration.ofSeconds(30))
+                    .block();
+        } catch (Exception e) {
+            log.warn("No live-environment found for userId: {}", userId);
+            return null;
+        }
+    }
+
+    public java.util.Map<String, Object> createImage(java.util.Map<String, Object> image) {
+        log.debug("Creating image in database: {}", image);
+        return databaseWebClient.post()
+                .uri("/api/images")
+                .bodyValue(image)
+                .retrieve()
+                .bodyToMono(java.util.Map.class)
+                .timeout(Duration.ofSeconds(30))
+                .block();
+    }
+
+    public void deleteImage(Integer imageId) {
+        log.debug("Deleting image with id: {}", imageId);
+        databaseWebClient.delete()
+                .uri("/api/images/{id}", imageId)
+                .retrieve()
+                .bodyToMono(Void.class)
+                .timeout(Duration.ofSeconds(30))
+                .block();
+    }
+
+    public Mono<Void> updateInstanceStatus(Integer instanceId, String status) {
+        log.debug("Updating instance {} status to: {}", instanceId, status);
+
+        return databaseWebClient.get()
+                .uri("/api/instances/{id}", instanceId)
+                .retrieve()
+                .bodyToMono(InstanceDTO.class)
+                .flatMap(instance -> {
+                    instance.setStatus(status);
+                    return databaseWebClient.put()
+                            .uri("/api/instances/{id}", instanceId)
+                            .bodyValue(instance)
+                            .retrieve()
+                            .bodyToMono(InstanceDTO.class);
+                })
+                .doOnSuccess(result -> log.info("Instance {} status updated to: {}", instanceId, status))
+                .doOnError(e -> log.error("Failed to update instance {} status", instanceId, e))
+                .then()
+                .onErrorResume(e -> Mono.empty());
+    }
+
+    public Mono<Void> updateLiveEnvironmentStatus(Integer liveEnvId, String status) {
+        log.debug("Updating live-environment {} status to: {}", liveEnvId, status);
+
+        java.util.Map<String, Object> updateData = new java.util.HashMap<>();
+        updateData.put("status", status);
+
+        return databaseWebClient.put()
+                .uri("/api/live-environments/{id}", liveEnvId)
+                .bodyValue(updateData)
+                .retrieve()
+                .bodyToMono(java.util.Map.class)
+                .timeout(Duration.ofSeconds(30))
+                .doOnSuccess(result -> log.info("Live-environment {} status updated to: {}", liveEnvId, status))
+                .doOnError(e -> log.error("Failed to update live-environment {} status", liveEnvId, e))
+                .then()
+                .onErrorResume(e -> Mono.empty());
     }
 }

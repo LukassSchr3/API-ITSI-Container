@@ -50,9 +50,25 @@ public class ContainerService {
                 );
             }
 
-            // Send start request to backend controller (only containerId)
+            // Send start request to backend with FULL instance data from database
             Map<String, Object> backendRequest = new HashMap<>();
             backendRequest.put("containerId", instance.getContainerId());
+            backendRequest.put("name", instance.getName());
+            backendRequest.put("userId", instance.getUserId());
+            backendRequest.put("imageId", instance.getImageId());
+
+            // Add image information if available
+            if (instance.getImage() != null) {
+                backendRequest.put("imageRef", instance.getImage().getImageRef());
+                backendRequest.put("imageName", instance.getImage().getName());
+            }
+
+            // Add user information if available
+            if (instance.getUser() != null) {
+                backendRequest.put("userName", instance.getUser().getName());
+            }
+
+            log.info("Sending full instance data to backend: {}", backendRequest);
 
             Map<String, Object> backendResponse = backendWebClient.post()
                     .uri("/containers/start")

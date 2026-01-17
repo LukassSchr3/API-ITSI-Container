@@ -1,5 +1,11 @@
 package itsi.api.database.service;
 
+/*
+ * Cedar Policy Service - Currently disabled due to missing cedar-java library
+ * TODO: Add proper Cedar Policy library dependency when available
+ */
+
+/*
 import com.cedarpolicy.AuthorizationEngine;
 import com.cedarpolicy.BasicAuthorizationEngine;
 import com.cedarpolicy.model.exception.InternalException;
@@ -40,3 +46,4 @@ public class CedarService {
         }
     }
 }
+*/

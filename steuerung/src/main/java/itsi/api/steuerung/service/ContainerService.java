@@ -71,7 +71,7 @@ public class ContainerService {
             log.info("Sending full instance data to backend: {}", backendRequest);
 
             Map<String, Object> backendResponse = backendWebClient.post()
-                    .uri("/containers/start")
+                    .uri("/instances/start")
                     .bodyValue(backendRequest)
                     .retrieve()
                     .bodyToMono(Map.class)
@@ -127,7 +127,7 @@ public class ContainerService {
             backendRequest.put("containerId", instance.getContainerId());
 
             Map<String, Object> backendResponse = backendWebClient.post()
-                    .uri("/containers/stop")
+                    .uri("/instances/stop")
                     .bodyValue(backendRequest)
                     .retrieve()
                     .bodyToMono(Map.class)
@@ -183,7 +183,7 @@ public class ContainerService {
             backendRequest.put("containerId", instance.getContainerId());
 
             Map<String, Object> backendResponse = backendWebClient.post()
-                    .uri("/containers/reset")
+                    .uri("/instances/reset")
                     .bodyValue(backendRequest)
                     .retrieve()
                     .bodyToMono(Map.class)
@@ -273,7 +273,7 @@ public class ContainerService {
             backendRequest.put("userId", userId);
 
             Map<String, Object> backendResponse = backendWebClient.post()
-                    .uri("/containers/start")
+                    .uri("/instances/start")
                     .bodyValue(backendRequest)
                     .retrieve()
                     .bodyToMono(Map.class)

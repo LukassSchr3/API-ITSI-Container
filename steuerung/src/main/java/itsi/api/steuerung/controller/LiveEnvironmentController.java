@@ -1,6 +1,7 @@
 package itsi.api.steuerung.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -8,52 +9,70 @@ import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import itsi.api.steuerung.websocket.LiveEnvironmentWebSocketHandler;
+import lombok.extern.slf4j.Slf4j;
 import java.util.Map;
 import java.util.HashMap;
 
 @RestController
 @RequestMapping("/api/live-environment")
+@Slf4j
 public class LiveEnvironmentController {
     private final WebClient databaseWebClient;
+    private final WebClient backendWebClient;
     private final LiveEnvironmentWebSocketHandler liveEnvironmentWebSocketHandler;
 
     @Autowired
-    public LiveEnvironmentController(WebClient databaseWebClient, LiveEnvironmentWebSocketHandler liveEnvironmentWebSocketHandler) {
+    public LiveEnvironmentController(WebClient databaseWebClient,
+                                    @Qualifier("backendWebClient") WebClient backendWebClient,
+                                    LiveEnvironmentWebSocketHandler liveEnvironmentWebSocketHandler) {
         this.databaseWebClient = databaseWebClient;
+        this.backendWebClient = backendWebClient;
         this.liveEnvironmentWebSocketHandler = liveEnvironmentWebSocketHandler;
     }
 
     @PostMapping("/start/{userId}")
     public ResponseEntity<?> startLiveEnvironment(@PathVariable Long userId) {
-        // Prüfe, ob Live-Environment existiert
-        Map<String, Object> liveEnv = databaseWebClient.get()
-                .uri("/api/live-environments/" + userId)
-                .retrieve()
-                .bodyToMono(Map.class)
-                .block();
-        if (liveEnv == null || liveEnv.get("id") == null) {
-            // Neues Live-Environment anlegen
-            Integer maxVncPort = databaseWebClient.get()
-                    .uri("/api/live-environments/max-vnc-port")
-                    .retrieve()
-                    .bodyToMono(Integer.class)
-                    .block();
-            int newVncPort = (maxVncPort != null ? maxVncPort : 5900) + 1;
-            Map<String, Object> newEnv = new HashMap<>();
-            newEnv.put("userId", userId);
-            newEnv.put("status", "running");
-            newEnv.put("vncHost", "localhost");
-            newEnv.put("vncPassword", "password123");
-            newEnv.put("vncPort", newVncPort);
-            // Backend erstellt ID
-            liveEnv = databaseWebClient.post()
-                    .uri("/api/live-environments")
-                    .bodyValue(newEnv)
+        try {
+            // Prüfe, ob Live-Environment existiert
+            Map<String, Object> liveEnv = databaseWebClient.get()
+                    .uri("/api/live-environments/" + userId)
                     .retrieve()
                     .bodyToMono(Map.class)
                     .block();
-        } else {
-            // Existierendes Live-Environment starten
+
+            if (liveEnv == null || liveEnv.get("id") == null) {
+                // Neues Live-Environment anlegen
+                Integer maxVncPort = databaseWebClient.get()
+                        .uri("/api/live-environments/max-vnc-port")
+                        .retrieve()
+                        .bodyToMono(Integer.class)
+                        .block();
+                int newVncPort = (maxVncPort != null ? maxVncPort : 5900) + 1;
+                Map<String, Object> newEnv = new HashMap<>();
+                newEnv.put("userId", userId);
+                newEnv.put("status", "running");
+                newEnv.put("vncHost", "localhost");
+                newEnv.put("vncPassword", "password123");
+                newEnv.put("vncPort", newVncPort);
+
+                // Erstelle in Datenbank
+                liveEnv = databaseWebClient.post()
+                        .uri("/api/live-environments")
+                        .bodyValue(newEnv)
+                        .retrieve()
+                        .bodyToMono(Map.class)
+                        .block();
+            }
+
+            // Sende START an Backend
+            Map<String, Object> backendResponse = backendWebClient.post()
+                    .uri("/live/start")
+                    .bodyValue(liveEnv)
+                    .retrieve()
+                    .bodyToMono(Map.class)
+                    .block();
+
+            // Update Status in Datenbank
             liveEnv.put("status", "running");
             liveEnv = databaseWebClient.put()
                     .uri("/api/live-environments/" + liveEnv.get("id"))
@@ -61,35 +80,107 @@ public class LiveEnvironmentController {
                     .retrieve()
                     .bodyToMono(Map.class)
                     .block();
+
+            // WebSocket: noVNC-Port setzen und senden
+            int vncPort = (int) liveEnv.get("vncPort");
+            int noVncPort = 6000 + (vncPort % 100);
+            liveEnv.put("noVncPort", noVncPort);
+            liveEnvironmentWebSocketHandler.sendToUser(userId, liveEnv);
+
+            log.info("Live environment started for user {}: {}", userId, liveEnv);
+            return ResponseEntity.ok(liveEnv);
+        } catch (Exception e) {
+            log.error("Failed to start live environment for user {}", userId, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", e.getMessage()));
         }
-        // WebSocket: noVNC-Port setzen und senden
-        int vncPort = (int) liveEnv.get("vncPort");
-        int noVncPort = 6000 + (vncPort % 100);
-        liveEnv.put("noVncPort", noVncPort);
-        liveEnvironmentWebSocketHandler.sendToUser(userId, liveEnv);
-        return ResponseEntity.ok(liveEnv);
     }
 
     @PostMapping("/stop/{userId}")
     public ResponseEntity<?> stopLiveEnvironment(@PathVariable Long userId) {
-        Map<String, Object> liveEnv = databaseWebClient.get()
-                .uri("/api/live-environments/" + userId)
-                .retrieve()
-                .bodyToMono(Map.class)
-                .block();
-        if (liveEnv == null || liveEnv.get("id") == null) {
-            return ResponseEntity.badRequest().body("No live environment found for user " + userId);
+        try {
+            Map<String, Object> liveEnv = databaseWebClient.get()
+                    .uri("/api/live-environments/" + userId)
+                    .retrieve()
+                    .bodyToMono(Map.class)
+                    .block();
+
+            if (liveEnv == null || liveEnv.get("id") == null) {
+                return ResponseEntity.badRequest().body("No live environment found for user " + userId);
+            }
+
+            // Sende STOP an Backend
+            Map<String, Object> backendResponse = backendWebClient.post()
+                    .uri("/live/stop")
+                    .bodyValue(liveEnv)
+                    .retrieve()
+                    .bodyToMono(Map.class)
+                    .block();
+
+            // Update Status in Datenbank
+            liveEnv.put("status", "stopped");
+            liveEnv = databaseWebClient.put()
+                    .uri("/api/live-environments/" + liveEnv.get("id"))
+                    .bodyValue(liveEnv)
+                    .retrieve()
+                    .bodyToMono(Map.class)
+                    .block();
+
+            // WebSocket: Status senden
+            liveEnvironmentWebSocketHandler.sendToUser(userId, liveEnv);
+
+            log.info("Live environment stopped for user {}: {}", userId, liveEnv);
+            return ResponseEntity.ok(liveEnv);
+        } catch (Exception e) {
+            log.error("Failed to stop live environment for user {}", userId, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", e.getMessage()));
         }
-        liveEnv.put("status", "stopped");
-        liveEnv = databaseWebClient.put()
-                .uri("/api/live-environments/" + liveEnv.get("id"))
-                .bodyValue(liveEnv)
-                .retrieve()
-                .bodyToMono(Map.class)
-                .block();
-        // WebSocket: Status senden
-        liveEnvironmentWebSocketHandler.sendToUser(userId, liveEnv);
-        return ResponseEntity.ok(liveEnv);
+    }
+
+    @PostMapping("/reset/{userId}")
+    public ResponseEntity<?> resetLiveEnvironment(@PathVariable Long userId) {
+        try {
+            Map<String, Object> liveEnv = databaseWebClient.get()
+                    .uri("/api/live-environments/" + userId)
+                    .retrieve()
+                    .bodyToMono(Map.class)
+                    .block();
+
+            if (liveEnv == null || liveEnv.get("id") == null) {
+                return ResponseEntity.badRequest().body("No live environment found for user " + userId);
+            }
+
+            // Sende RESET an Backend
+            Map<String, Object> backendResponse = backendWebClient.post()
+                    .uri("/live/reset")
+                    .bodyValue(liveEnv)
+                    .retrieve()
+                    .bodyToMono(Map.class)
+                    .block();
+
+            // Update Status in Datenbank
+            liveEnv.put("status", "running");
+            liveEnv = databaseWebClient.put()
+                    .uri("/api/live-environments/" + liveEnv.get("id"))
+                    .bodyValue(liveEnv)
+                    .retrieve()
+                    .bodyToMono(Map.class)
+                    .block();
+
+            // WebSocket: Status senden
+            int vncPort = (int) liveEnv.get("vncPort");
+            int noVncPort = 6000 + (vncPort % 100);
+            liveEnv.put("noVncPort", noVncPort);
+            liveEnvironmentWebSocketHandler.sendToUser(userId, liveEnv);
+
+            log.info("Live environment reset for user {}: {}", userId, liveEnv);
+            return ResponseEntity.ok(liveEnv);
+        } catch (Exception e) {
+            log.error("Failed to reset live environment for user {}", userId, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", e.getMessage()));
+        }
     }
 
     @PostMapping("/create")

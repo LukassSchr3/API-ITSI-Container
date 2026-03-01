@@ -42,6 +42,10 @@ dependencies {
     implementation 'com.cedarpolicy:cedar-java:3.3.0'
 }
 
+tasks.withType(JavaCompile).configureEach {
+    options.compilerArgs << '-parameters'
+}
+
 tasks.named('test') {
     useJUnitPlatform()
 }

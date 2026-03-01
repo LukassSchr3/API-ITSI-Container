@@ -3,6 +3,7 @@ package itsi.api.steuerung.config;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -25,6 +26,7 @@ public class WebClientConfig {
     private long backendTimeout;
 
     @Bean
+    @Primary
     public WebClient databaseWebClient() {
         return WebClient.builder()
                 .baseUrl(databaseApiUrl)

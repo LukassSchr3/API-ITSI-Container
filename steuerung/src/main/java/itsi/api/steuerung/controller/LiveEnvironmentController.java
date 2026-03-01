@@ -22,7 +22,7 @@ public class LiveEnvironmentController {
     private final LiveEnvironmentWebSocketHandler liveEnvironmentWebSocketHandler;
 
     @Autowired
-    public LiveEnvironmentController(WebClient databaseWebClient,
+    public LiveEnvironmentController(@Qualifier("databaseWebClient") WebClient databaseWebClient,
                                     @Qualifier("backendWebClient") WebClient backendWebClient,
                                     LiveEnvironmentWebSocketHandler liveEnvironmentWebSocketHandler) {
         this.databaseWebClient = databaseWebClient;
